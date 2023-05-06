@@ -5,6 +5,8 @@
 #	2. using the wrong segment address in an instruction (bit address in a byte instruction, internal ram high used in direct mode for e.g.)
 #	3. report code, ram space usage. Call depth (a bit hard)
 #	4. Eventually generate a python script and kernel assembly tailored to the user assembly for interactive testing.
+#
+#	When linking use the following options (aslink -m -i -u -w) for compatibility
 
 import re
 import argparse
@@ -17,6 +19,7 @@ def check_files_existance(input_file_list):
 			exit()
 
 
+# Opens a single asm file (passed as arg) and checks for issue type #1 (refer above)
 re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+.+\,\s*(\d+)")
 def lint_check_immediate_numbers (asm_file_name):
 	# allowed numbers, plain (20), prefixed (0b, 0B, 0o, 0O, 0q, 0Q, 0d, 0D, 0h, 0H,0x,0X)
@@ -33,7 +36,29 @@ def lint_check_immediate_numbers (asm_file_name):
 		for issues in issue_list:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
 
+	fh_asm.close()
 
+# opens a map file that aslink generates to get the areas and their stats
+# always have the following areas, even if they're empty. It helps to minimize unintentional mistakes related to memory access
+# looks for specific areas :
+#	VECTORS : holds the reset vectors
+#	CODE	: the flash codesegment where all the code fits in
+#	IRAML	: lower internal ram (0-7Fh). Can be accessed in direct/indirect modes. Hold the registers, the bit ram and scratch area
+#	IRAMH	: upper internal ram (0x80 - 0xFFh). Can be accessed indirectly only. The same address range in direct mode accesses SFRs. Big risk of typo
+#	BITRAM	: IRAML (20h to 30h) are bit accessible as 0h-7FH. Risk of using bit address in byte instruction.
+#	XRAM	: internal xtended ram (varies with chip). Range starts from 0, so there is risk of using this in iram or code instructions.
+#			Additionally there is also a risk of exceeding available memory.
+
+re_match_areas = re.compile(r"^(VECTORS|CODE|IRAML|IRAMH|BITRAM|XRAM)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)")
+def get_map_areas_size(map_file):
+	fh_mapfile = open(map_file, 'r')
+	area_list = []
+	for line in fh_mapfile:
+		match = re_match_areas.search(line)
+		if (match):
+			area_list.append( match.groups() )
+	fh_mapfile.close()
+	return area_list
 
 # setup the argument parser, get the arguments and call respective functions
 parser = argparse.ArgumentParser(
@@ -55,4 +80,5 @@ args = parser.parse_args()
 check_files_existance(args.map_file)
 check_files_existance(args.asm_file)
 
+print (get_map_areas_size(args.map_file[0])[0][0])
 lint_check_immediate_numbers(args.asm_file[0])
