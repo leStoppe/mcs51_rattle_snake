@@ -20,7 +20,10 @@ def check_files_existance(input_file_list):
 
 
 # Opens a single asm file (passed as arg) and checks for issue type #1 (refer above)
-re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+.+\,\s*(\d+)")
+# the main culprits
+re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE|XCH)\s+.+\,\s*(\d+)")
+# less probable but possible ones (unary operators and ones where it's operand1)
+re_immediate_number2 = re.compile(r"^\s*(PUSH|POP|INC|DEC|CLR|SETB)\s+(\d+)")
 def lint_check_immediate_numbers (asm_file_name):
 	# allowed numbers, plain (20), prefixed (0b, 0B, 0o, 0O, 0q, 0Q, 0d, 0D, 0h, 0H,0x,0X)
 	fh_asm = open(asm_file_name, 'r')
@@ -28,7 +31,8 @@ def lint_check_immediate_numbers (asm_file_name):
 	for counter, line in enumerate(fh_asm):
 		line = line.upper()
 		if (re_immediate_number.search(line)):
-			#print ("Warning! {0} [{1}] numeral without # prefix. Is this intended to be an address?".format(asm_file_name, counter+1))
+			issue_list.append([counter+1, line])
+		elif(re_immediate_number2.search(line) ):
 			issue_list.append([counter+1, line])
 	print ("Linting [imm const check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
 	if (len(issue_list) > 0):
@@ -52,11 +56,16 @@ def lint_check_immediate_numbers (asm_file_name):
 re_match_areas = re.compile(r"^(VECTORS|CODE|IRAML|IRAMH|BITRAM|XRAM)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)")
 def get_map_areas_size(map_file):
 	fh_mapfile = open(map_file, 'r')
-	area_list = []
+	area_retrun = []
 	for line in fh_mapfile:
 		match = re_match_areas.search(line)
 		if (match):
-			area_list.append( match.groups() )
+			temp_dict = {}
+			temp_dict['area'] = match.groups()[0]
+			temp_dict['base_address'] = match.groups()[1]
+			temp_dict['size'] = match.groups()[2]
+			temp_dict['symbols'] = []
+			area_list.append(temp_dict)
 	fh_mapfile.close()
 	return area_list
 
@@ -81,4 +90,5 @@ check_files_existance(args.map_file)
 check_files_existance(args.asm_file)
 
 print (get_map_areas_size(args.map_file[0])[0][0])
+print (get_map_areas_size(args.map_file[0]))
 lint_check_immediate_numbers(args.asm_file[0])
