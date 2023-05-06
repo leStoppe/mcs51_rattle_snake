@@ -54,9 +54,10 @@ def lint_check_immediate_numbers (asm_file_name):
 #			Additionally there is also a risk of exceeding available memory.
 
 re_match_areas = re.compile(r"^(VECTORS|CODE|IRAML|IRAMH|BITRAM|XRAM)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)")
+re_match_area_symbols = re.compile(r"([0-9A-Fa-f]{4})\s\s([a-zA-Z0-9_\.\$]+)")
 def get_map_areas_size(map_file):
 	fh_mapfile = open(map_file, 'r')
-	area_retrun = []
+	area_list = []
 	for line in fh_mapfile:
 		match = re_match_areas.search(line)
 		if (match):
@@ -66,8 +67,38 @@ def get_map_areas_size(map_file):
 			temp_dict['size'] = match.groups()[2]
 			temp_dict['symbols'] = []
 			area_list.append(temp_dict)
+			continue
+
+		#skip checking for symbols within an area before the first valid area is found
+		if (len(area_list) == 0):
+			continue
+
+		#check for symbols defined in the last area match
+		match2 = re_match_area_symbols.search(line)
+		if (match2):
+			symbol_name = match2.groups()[0]
+			symbol_address = match2.groups()[1]
+			area_list[-1]['symbols'].append([symbol_name, symbol_address])
 	fh_mapfile.close()
 	return area_list
+
+def summarize_area_usage (area_data):
+	print ("---------------------- Areas summary ------------------------")
+	print ("Area\t\tStart\t\tSize")
+	for item in area_data:
+		print ("{0}\t\t0x{1}\t\t0x{2}".format(item['area'], item['base_address'], item['size'] ))
+	print ("-------------------------------------------------------------")
+
+def get_symbols_per_area (area_data):
+	area_map = {}
+
+	for item in area_data:
+		area_name = item['area']
+		area_symbols = []
+		for symbols in item['symbols']:
+			area_symbols.append(symbols[1])
+		area_map[area_name] = area_symbols
+	return area_map
 
 # setup the argument parser, get the arguments and call respective functions
 parser = argparse.ArgumentParser(
@@ -89,6 +120,10 @@ args = parser.parse_args()
 check_files_existance(args.map_file)
 check_files_existance(args.asm_file)
 
-print (get_map_areas_size(args.map_file[0])[0][0])
-print (get_map_areas_size(args.map_file[0]))
+area_data = get_map_areas_size(args.map_file[0]) 
+summarize_area_usage(area_data)
+area_symbols = get_symbols_per_area(area_data)
+
+print (area_symbols)
+#print (get_map_areas_size(args.map_file[0]))
 lint_check_immediate_numbers(args.asm_file[0])
