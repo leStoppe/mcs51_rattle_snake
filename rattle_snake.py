@@ -23,7 +23,7 @@ def check_files_existance(input_file_list):
 # the main culprits
 re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE|XCH)\s+.+\,\s*(\d+)")
 # less probable but possible ones (unary operators and ones where it's operand1)
-re_immediate_number2 = re.compile(r"^\s*(PUSH|POP|INC|DEC|CLR|SETB)\s+(\d+)")
+re_immediate_number2 = re.compile(r"^\s*(PUSH|POP|INC|DEC|CLR|SETB|CPL)\s+(\d+)")
 def lint_check_immediate_numbers (asm_file_name):
 	# allowed numbers, plain (20), prefixed (0b, 0B, 0o, 0O, 0q, 0Q, 0d, 0D, 0h, 0H,0x,0X)
 	fh_asm = open(asm_file_name, 'r')
