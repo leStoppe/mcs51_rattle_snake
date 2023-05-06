@@ -17,7 +17,7 @@ def check_files_existance(input_file_list):
 			exit()
 
 
-re_immediate_number = re.compile (r"(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+.+\,\s*(\d+)")
+re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+.+\,\s*(\d+)")
 def lint_check_immediate_numbers (asm_file_name):
 	# allowed numbers, plain (20), prefixed (0b, 0B, 0o, 0O, 0q, 0Q, 0d, 0D, 0h, 0H,0x,0X)
 	fh_asm = open(asm_file_name, 'r')
@@ -27,11 +27,11 @@ def lint_check_immediate_numbers (asm_file_name):
 		if (re_immediate_number.search(line)):
 			#print ("Warning! {0} [{1}] numeral without # prefix. Is this intended to be an address?".format(asm_file_name, counter+1))
 			issue_list.append([counter+1, line])
-	print ("Linted {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
+	print ("Linting [imm const check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
 	if (len(issue_list) > 0):
 		print ("These lines have numerals without a # prefix. Is this intended to be an address ?")
 		for issues in issue_list:
-			print ("\t[{0}], {1}".format(issues[0] issues[1]) )
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
 
 
 
