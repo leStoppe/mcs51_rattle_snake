@@ -18,7 +18,14 @@ def check_files_existance(input_file_list):
 			print ("Error! File \'{0}\' not found".format(file))
 			exit()
 
-
+def check_all_areas_present(area_symbols):
+	area_keys = area_symbols.keys()
+	areas_to_check = ['IRAMH', 'IRAML', 'CODE', 'BITRAM', 'XRAM', 'SFRBIT', 'SFRBYTE']
+	for area in areas_to_check:
+		if (area not in area_keys):
+			print ("Error! map file doesn't contain {0} area. Linter can not continue".format(area) )
+			exit()
+	
 # Opens a single asm file (passed as arg) and checks for issue type #1 (refer above)
 # the main culprits
 re_immediate_number = re.compile (r"^\s*(MOV|ADD|ADDC|SUBB|ANL|ORL|XRL|CJNE|XCH)\s+.+\,\s*(\d+)")
@@ -34,7 +41,7 @@ def lint_check_immediate_numbers (asm_file_name):
 			issue_list.append([counter+1, line])
 		elif(re_immediate_number2.search(line) ):
 			issue_list.append([counter+1, line])
-	print ("Linting [imm const check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
+	print ("Linting [imm const check] {0} , found {1} issues".format (" ", len(issue_list) )  )
 	if (len(issue_list) > 0):
 		print (">These lines have numerals without a # prefix. Is this intended to be an address ?")
 		for issues in issue_list:
@@ -166,7 +173,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 
 	total_issue_count = len(issue_list_irh) + len(issue_list_bit) + len (issue_list_xram) + len(issue_list_code)
 
-	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (asm_file_name, total_issue_count )  )
+	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (" ", total_issue_count )  )
 	if (len(issue_list_irh) > 0):
 		print (">These instructions attempts to access the high iram range (IRAMH) in direct mode. Please fix!")
 		for issues in issue_list_irh:
@@ -179,7 +186,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 		print (">These instructions use XRAM address in direct mode! Please fix!")
 		for issues in issue_list_xram:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
-	if (len(issue_list_xram) > 0):
+	if (len(issue_list_code) > 0):
 		print (">These instructions use CODE (flash) address in direct mode! Please fix!")
 		for issues in issue_list_code:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
@@ -200,8 +207,7 @@ parser.add_argument('--asm_file', metavar='asm_file', type=str,
 
 args = parser.parse_args()
 
-#print (args.map_file)
-#print (args.asm_file)
+#sanity check (file existance)
 check_files_existance(args.map_file)
 check_files_existance(args.asm_file)
 
@@ -209,7 +215,13 @@ area_data = get_map_areas_size(args.map_file[0])
 summarize_area_usage(area_data)
 area_symbols = get_symbols_per_area(area_data)
 
+#sanity check (areas)
+#print ("Found the following areas from the map file")
+#print (area_symbols.keys() )
+check_all_areas_present(area_symbols)
 
 #print (get_map_areas_size(args.map_file[0]))
-lint_check_immediate_numbers(args.asm_file[0])
-lint_check_memory_access_types(args.asm_file[0], area_symbols)
+for asm_file in args.asm_file:
+	print ("\n========================== {0} =====\n".format(asm_file) )
+	lint_check_immediate_numbers(asm_file)
+	lint_check_memory_access_types(asm_file, area_symbols)
