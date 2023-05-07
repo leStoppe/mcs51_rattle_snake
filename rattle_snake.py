@@ -36,7 +36,7 @@ def lint_check_immediate_numbers (asm_file_name):
 			issue_list.append([counter+1, line])
 	print ("Linting [imm const check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
 	if (len(issue_list) > 0):
-		print ("These lines have numerals without a # prefix. Is this intended to be an address ?")
+		print (">These lines have numerals without a # prefix. Is this intended to be an address ?")
 		for issues in issue_list:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
 
@@ -100,6 +100,37 @@ def get_symbols_per_area (area_data):
 		area_map[area_name] = area_symbols
 	return area_map
 
+#check for iram high range variables being used in direct access (this is invalid)
+#direct mem is operand 2
+re_mem_acces_irh_direct = re.compile(r"^\s*(MOV|ADD|XCH|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+[a-zA-Z0-9\@_]+\,\s*([a-zA-Z0-9_\.\$]+)")
+#direct mem is operand 1
+re_mem_acces_irh_direct2= re.compile(r"^\s*(MOV|PUSH|POP|INC|DEC|ANL|ORL|XRL|DJNZ)\s+([a-zA-Z0-9_\.\$]+)")
+def lint_check_memory_access_types (asm_file_name, area_symbols):
+	fh_asm = open (asm_file_name, 'r')
+	issue_list = []
+	for counter, line in enumerate(fh_asm):
+		line = line.upper()
+		match1 = re_mem_acces_irh_direct.search(line)
+		if (match1):
+			op2_name = match1.groups()[1]
+			if (op2_name in area_symbols['IRAMH']):
+				issue_list.append([counter+1, line])
+
+		match2 = re_mem_acces_irh_direct2.search(line)
+
+		if (match2):
+			op2_name = match2.groups()[1]
+			if (op2_name in area_symbols['IRAMH']):
+				issue_list.append([counter+1, line])
+	fh_asm.close()
+
+	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
+	if (len(issue_list) > 0):
+		print (">These instructions attempts to access the high iram range in direct mode. Please fix!")
+		for issues in issue_list:
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
+
+
 # setup the argument parser, get the arguments and call respective functions
 parser = argparse.ArgumentParser(
 			prog='rattle_snake.py',
@@ -124,6 +155,7 @@ area_data = get_map_areas_size(args.map_file[0])
 summarize_area_usage(area_data)
 area_symbols = get_symbols_per_area(area_data)
 
-print (area_symbols)
+
 #print (get_map_areas_size(args.map_file[0]))
 lint_check_immediate_numbers(args.asm_file[0])
+lint_check_memory_access_types(args.asm_file[0], area_symbols)
