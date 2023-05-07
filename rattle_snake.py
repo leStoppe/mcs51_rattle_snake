@@ -53,7 +53,7 @@ def lint_check_immediate_numbers (asm_file_name):
 #	XRAM	: internal xtended ram (varies with chip). Range starts from 0, so there is risk of using this in iram or code instructions.
 #			Additionally there is also a risk of exceeding available memory.
 
-re_match_areas = re.compile(r"^(VECTORS|CODE|IRAML|IRAMH|BITRAM|XRAM)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)")
+re_match_areas = re.compile(r"^(VECTORS|CODE|IRAML|IRAMH|BITRAM|XRAM|SFRBIT|SFRBYTE)\s+([0-9A-Fa-f]+)\s+([0-9A-Fa-f]+)")
 re_match_area_symbols = re.compile(r"([0-9A-Fa-f]{4})\s\s([a-zA-Z0-9_\.\$]+)")
 def get_map_areas_size(map_file):
 	fh_mapfile = open(map_file, 'r')
@@ -100,34 +100,87 @@ def get_symbols_per_area (area_data):
 		area_map[area_name] = area_symbols
 	return area_map
 
+# Opens a single asm file (passed as arg) and checks for issue type #2 (refer above)
 #check for iram high range variables being used in direct access (this is invalid)
 #direct mem is operand 2
 re_mem_acces_irh_direct = re.compile(r"^\s*(MOV|ADD|XCH|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+[a-zA-Z0-9\@_]+\,\s*([a-zA-Z0-9_\.\$]+)")
 #direct mem is operand 1
 re_mem_acces_irh_direct2= re.compile(r"^\s*(MOV|PUSH|POP|INC|DEC|ANL|ORL|XRL|DJNZ)\s+([a-zA-Z0-9_\.\$]+)")
+#exception for mov c, bit
+re_mem_access_mov_c = re.compile(r"^\s*(MOV)\s+C\,\s*([a-zA-Z0-9_\.\$]+)")
 def lint_check_memory_access_types (asm_file_name, area_symbols):
 	fh_asm = open (asm_file_name, 'r')
-	issue_list = []
+	issue_list_irh = []
+	issue_list_bit = []
+	issue_list_xram =[]
+	issue_list_code =[]
 	for counter, line in enumerate(fh_asm):
 		line = line.upper()
+		
+		#check for the mov c exception to the rule
+		match3 = re_mem_access_mov_c.search(line)
+		if (match3):
+			op2_name = match3.groups()[1]
+			print (op2_name)
+			#skip rest of the check if it's a mov c, bit used with a bit or sfrbit area
+			if ((op2_name in area_symbols['BITRAM']) |
+				(op2_name in area_symbols['SFRBIT']) ):
+				continue
+
 		match1 = re_mem_acces_irh_direct.search(line)
 		if (match1):
 			op2_name = match1.groups()[1]
+			#check for iram high address variables being accessed in direct mode
 			if (op2_name in area_symbols['IRAMH']):
-				issue_list.append([counter+1, line])
+				issue_list_irh.append([counter+1, line])
+			#check for bitram address variables being accessd in direct mode
+			if ((op2_name in area_symbols['BITRAM']) |
+				(op2_name in area_symbols['SFRBIT']) ):
+				issue_list_bit.append([counter+1, line])
+			#check for xram address variables being accessed in direct mode
+			if (op2_name in area_symbols['XRAM']):
+				issue_list_xram.append([counter+1, line])
+			#check for code (flash) variables being accessed in direct mode
+			if (op2_name in area_symbols['CODE']):
+				issue_list_code.append([counter+1, line])
 
 		match2 = re_mem_acces_irh_direct2.search(line)
 
 		if (match2):
 			op2_name = match2.groups()[1]
+			#check for iram high address variables being accessed in direct mode
 			if (op2_name in area_symbols['IRAMH']):
-				issue_list.append([counter+1, line])
+				issue_list_irh.append([counter+1, line])
+			#check for bitram address variables being accessd in direct mode
+			if ((op2_name in area_symbols['BITRAM']) |
+				(op2_name in area_symbols['SFRBIT']) ):
+				issue_list_bit.append([counter+1, line])
+			#check for xram address variables being accessed in direct mode
+			if (op2_name in area_symbols['XRAM']):
+				issue_list_xram.append([counter+1, line])
+			#check for code (flash) variables being accessed in direct mode
+			if (op2_name in area_symbols['CODE']):
+				issue_list_code.append([counter+1, line])
 	fh_asm.close()
 
-	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (asm_file_name, len(issue_list) )  )
-	if (len(issue_list) > 0):
-		print (">These instructions attempts to access the high iram range in direct mode. Please fix!")
-		for issues in issue_list:
+	total_issue_count = len(issue_list_irh) + len(issue_list_bit) + len (issue_list_xram) + len(issue_list_code)
+
+	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (asm_file_name, total_issue_count )  )
+	if (len(issue_list_irh) > 0):
+		print (">These instructions attempts to access the high iram range (IRAMH) in direct mode. Please fix!")
+		for issues in issue_list_irh:
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
+	if (len(issue_list_bit) > 0):
+		print (">These instructions use BITRAM address in direct mode! Please fix!")
+		for issues in issue_list_bit:
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
+	if (len(issue_list_xram) > 0):
+		print (">These instructions use XRAM address in direct mode! Please fix!")
+		for issues in issue_list_xram:
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
+	if (len(issue_list_xram) > 0):
+		print (">These instructions use CODE (flash) address in direct mode! Please fix!")
+		for issues in issue_list_code:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
 
 
