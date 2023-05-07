@@ -100,6 +100,7 @@ def get_symbols_per_area (area_data):
 		area_map[area_name] = area_symbols
 	return area_map
 
+
 # Opens a single asm file (passed as arg) and checks for issue type #2 (refer above)
 #check for iram high range variables being used in direct access (this is invalid)
 #direct mem is operand 2
