@@ -20,7 +20,7 @@ def check_files_existance(input_file_list):
 
 def check_all_areas_present(area_symbols):
 	area_keys = area_symbols.keys()
-	areas_to_check = ['IRAMH', 'IRAML', 'CODE', 'BITRAM', 'XRAM', 'SFRBIT', 'SFRBYTE']
+	areas_to_check = ['IRAMH', 'IRAML', 'CODE', 'BITRAM', 'XRAM']
 	for area in areas_to_check:
 		if (area not in area_keys):
 			print ("Error! map file doesn't contain {0} area. Linter can not continue".format(area) )
@@ -132,7 +132,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 			print (op2_name)
 			#skip rest of the check if it's a mov c, bit used with a bit or sfrbit area
 			if ((op2_name in area_symbols['BITRAM']) |
-				(op2_name in area_symbols['SFRBIT']) ):
+				("SBIT_" in op2_name) ):
 				continue
 
 		match1 = re_mem_acces_irh_direct.search(line)
@@ -143,7 +143,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 				issue_list_irh.append([counter+1, line])
 			#check for bitram address variables being accessd in direct mode
 			if ((op2_name in area_symbols['BITRAM']) |
-				(op2_name in area_symbols['SFRBIT']) ):
+				("SBIT_" in op2_name) ):
 				issue_list_bit.append([counter+1, line])
 			#check for xram address variables being accessed in direct mode
 			if (op2_name in area_symbols['XRAM']):
@@ -161,7 +161,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 				issue_list_irh.append([counter+1, line])
 			#check for bitram address variables being accessd in direct mode
 			if ((op2_name in area_symbols['BITRAM']) |
-				(op2_name in area_symbols['SFRBIT']) ):
+				("SBIT_" in op2_name) ):
 				issue_list_bit.append([counter+1, line])
 			#check for xram address variables being accessed in direct mode
 			if (op2_name in area_symbols['XRAM']):
