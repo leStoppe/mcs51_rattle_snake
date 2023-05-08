@@ -1,0 +1,10 @@
+-m
+-i 
+-u
+-w
+out
+megawin_test
+megawin_test2
+-b VECTORS=0x0
+-b CODE=0x80
+-e

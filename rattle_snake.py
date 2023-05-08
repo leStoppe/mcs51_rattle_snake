@@ -114,14 +114,15 @@ def get_symbols_per_area (area_data):
 re_mem_acces_irh_direct = re.compile(r"^\s*(MOV|ADD|XCH|ADDC|SUBB|ANL|ORL|XRL|CJNE)\s+[a-zA-Z0-9\@_]+\,\s*([a-zA-Z0-9_\.\$]+)")
 #direct mem is operand 1
 re_mem_acces_irh_direct2= re.compile(r"^\s*(MOV|PUSH|POP|INC|DEC|ANL|ORL|XRL|DJNZ)\s+([a-zA-Z0-9_\.\$]+)")
-#exception for mov c, bit
-re_mem_access_mov_c = re.compile(r"^\s*(MOV)\s+C\,\s*([a-zA-Z0-9_\.\$]+)")
+#check for byte address in bit instruction. Also an exception for 'MOV C'
+re_mem_access_mov_c = re.compile(r"^\s*(MOV\s+C,|ANL\s+C,|ORL\s+C,|SETB|CLR|CPL)\s*/*([a-zA-Z0-9_\.\$]+)")
 def lint_check_memory_access_types (asm_file_name, area_symbols):
 	fh_asm = open (asm_file_name, 'r')
 	issue_list_irh = []
 	issue_list_bit = []
 	issue_list_xram =[]
 	issue_list_code =[]
+	issue_list_byte =[]
 	for counter, line in enumerate(fh_asm):
 		line = line.upper()
 		
@@ -129,11 +130,13 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 		match3 = re_mem_access_mov_c.search(line)
 		if (match3):
 			op2_name = match3.groups()[1]
-			print (op2_name)
 			#skip rest of the check if it's a mov c, bit used with a bit or sfrbit area
-			if ((op2_name in area_symbols['BITRAM']) |
-				("SBIT_" in op2_name) ):
+			if ((op2_name not in area_symbols['BITRAM']) and
+				("SBIT_" not in op2_name) ):
+				issue_list_byte.append([counter+1, line])
+			else:
 				continue
+
 
 		match1 = re_mem_acces_irh_direct.search(line)
 		if (match1):
@@ -173,7 +176,7 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 
 	total_issue_count = len(issue_list_irh) + len(issue_list_bit) + len (issue_list_xram) + len(issue_list_code)
 
-	print ("Linting [high iram range direct access check] {0} , found {1} issues".format (" ", total_issue_count )  )
+	print ("Linting [memory access type check] {0} , found {1} issues".format (" ", total_issue_count )  )
 	if (len(issue_list_irh) > 0):
 		print (">These instructions attempts to access the high iram range (IRAMH) in direct mode. Please fix!")
 		for issues in issue_list_irh:
@@ -181,6 +184,10 @@ def lint_check_memory_access_types (asm_file_name, area_symbols):
 	if (len(issue_list_bit) > 0):
 		print (">These instructions use BITRAM address in direct mode! Please fix!")
 		for issues in issue_list_bit:
+			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
+	if (len(issue_list_byte) > 0):
+		print (">These instructions are meant to be used with BITRAM/SBIT_! Please fix!")
+		for issues in issue_list_byte:
 			print ("\t[{0}] {1}".format(issues[0], issues[1]) )
 	if (len(issue_list_xram) > 0):
 		print (">These instructions use XRAM address in direct mode! Please fix!")
