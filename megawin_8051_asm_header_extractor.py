@@ -78,41 +78,34 @@ def extract_register_data(asm_include_file):
 
 	return results_dict
 
-def generate_asxxxx_header_file(output_filename, register_data):
+def generate_asxxxx_header_file(input_filename, output_filename, register_data):
 	fh_out = open(output_filename, 'w')
-	fh_out.write (".title extracted_megawin_8051_header\n\n\n")
 
-	fh_out.write(".bank SFRBIT (BASE=0x80, SIZE=0x7F)\n")
-	fh_out.write(".bank SFRBYTE (BASE=0x80, SIZE=0x7F)\n\n")
+	if (os.name == 'nt'):
+		header_name = input_filename.split("\\")[-1]
+	else:
+		header_name = input_filename.split("/")[-1]
 
-	fh_out.write ("; The addresses are written relative to area base (0x80) to work around asxxxx limitations\n")
-	fh_out.write (".area SFRBIT (ABS, OVR, DSEG, BANK=SFRBIT)\n\n")
+	fh_out.write ("; extracted_megawin_8051_header\n")
+	fh_out.write ("; source header is : {0}\n\n\n".format(header_name) )
+
 	for counter, key in enumerate(register_data['bit']):
-		address_offset = int ( register_data['bit'][key], 16) - int ("0x80", 16)
-		address_offset = hex (address_offset)
-		fh_out.write ("\t{0} = . + {1}\n".format(key, address_offset) )
-	fh_out.write ("; {0} SFR bitname to ram address mappings insert".format(counter) )
+		fh_out.write ("\t.define SBIT_{0} /{1}/\n".format(key, register_data['bit'][key]) )
+	fh_out.write ("; Total SFR bitname to ram address mappings inserted : {0}\n".format(counter) )
 
 	for counter, key in enumerate(register_data['bitequ']):
-		#address_offset = int ( register_data['bitequ'][key], 16) - int ("0x80", 16)
-		#address_offset = hex (address_offset)
-		fh_out.write ("\t{0} .equ {1}\n".format(key, register_data['bitequ'][key]) )
-	fh_out.write ("; {0} SFR fieldname to bitname mappings insert".format(counter) )
-	fh_out.write ("\n.end\n")
+		fh_out.write ("\t.define {0} /SBIT_{1}/\n".format(key, register_data['bitequ'][key]) )
+	fh_out.write ("; Total SFR fieldname to bitname mappings inserted : {0}\n".format(counter) )
 
-	fh_out.write (".area SFRBYTE (ABS, OVR, DSEG, BANK=SFRBYTE)\n\n")
+
 	for counter, key in enumerate(register_data['dat']):
-		address_offset = int ( register_data['dat'][key], 16) - int ("0x80", 16)
-		address_offset = hex (address_offset)
-		fh_out.write ("\t{0} = . + {1}\n".format(key, address_offset) )
-	fh_out.write ("; {0} SFR bytename to ram address mappings insert".format(counter) )
+		fh_out.write ("\t.define SBYTE_{0} /{1}/\n".format(key, register_data['dat'][key]) )
+	fh_out.write ("; Total SFR bytename to ram address mappings inserted : {0}\n".format(counter) )
 
 	for counter, key in enumerate(register_data['equ']):
-		#address_offset = int ( register_data['bitequ'][key], 16) - int ("0x80", 16)
-		#address_offset = hex (address_offset)
-		fh_out.write ("\t{0} .equ {1}\n".format(key, register_data['equ'][key]) )
-	fh_out.write ("; {0} SFR fieldname to bytename mappings insert".format(counter) )
-	fh_out.write ("\n.end\n")
+		fh_out.write ("\t.define {0} /SBYTE_{1}/\n".format(key, register_data['equ'][key]) )
+	fh_out.write ("; {0} Total SFR fieldname to bytename mappings inserted : {0}\n".format(counter) )
+
 
 	fh_out.close()
 
@@ -132,10 +125,11 @@ parser.add_argument('--output', metavar='output_file', type=str,
 
 args = parser.parse_args()
 
-print (args.input[0])
+print ("\nOpening header file {0} for extraction ".format(args.input[0]) )
 #sanity check
 check_files_existance(args.input)
 register_data = extract_register_data(args.input[0])
 
 #dump the scrubbed data into the outputfile
-generate_asxxxx_header_file(args.output[0], register_data)
+generate_asxxxx_header_file(args.input[0], args.output[0], register_data)
+print ("\nGenerated scrubbed headerfile for AS8051 : ", args.output[0])
